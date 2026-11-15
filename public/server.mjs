@@ -29,6 +29,8 @@ const TTL_MS = 15 * 60 * 1000;
 const YTDLP = process.env.YTDLP_BIN || "yt-dlp";
 const FFMPEG = process.env.FFMPEG_BIN || "ffmpeg";
 const REQUIRED_KEY = process.env.CONVERT_API_KEY || "";
+const MAX_CONCURRENT_JOBS = Number(process.env.MAX_CONCURRENT_JOBS || 2);
+let activeJobs = 0;
 
 /* Cookies let yt-dlp look like a signed-in visitor, which is what gets past the
  * "are you a bot?" walls on TikTok and Instagram. Raw text or base64 both work. */
@@ -172,110 +174,119 @@ async function findFile(token, ext) {
 }
 
 async function handleConvert(req, res) {
-  let body;
+  if (activeJobs >= MAX_CONCURRENT_JOBS) {
+    return send(res, 503, { message: "Server is busy. Please try again in a moment." });
+  }
+
+  activeJobs++;
   try {
-    body = await readBody(req);
-  } catch (error) {
-    return send(res, 400, { message: error.message });
-  }
+    let body;
+    try {
+      body = await readBody(req);
+    } catch (error) {
+      return send(res, 400, { message: error.message });
+    }
 
-  const url = typeof body.url === "string" ? body.url.trim() : "";
-  if (!isSupportedUrl(url)) return send(res, 400, { message: "That link isn't supported." });
+    const url = typeof body.url === "string" ? body.url.trim() : "";
+    if (!isSupportedUrl(url)) return send(res, 400, { message: "That link isn't supported." });
 
-  const wantsVideo = body.format === "mp4" || body.format === "video";
-  const requestedExt = String(body.ext || "").toLowerCase().replace(".", "");
-  const ext =
-    requestedExt && (wantsVideo ? VIDEO_CODECS[requestedExt] : AUDIO_CODECS[requestedExt])
-      ? requestedExt
-      : null;
+    const wantsVideo = body.format === "mp4" || body.format === "video";
+    const requestedExt = String(body.ext || "").toLowerCase().replace(".", "");
+    const ext =
+      requestedExt && (wantsVideo ? VIDEO_CODECS[requestedExt] : AUDIO_CODECS[requestedExt])
+        ? requestedExt
+        : null;
 
-  const quality = String(body.quality || "").replace(/[^0-9]/g, "");
-  const height = ["1080", "720", "480", "360", "240", "144"].includes(quality)
-    ? quality
-    : "1080";
+    const quality = String(body.quality || "").replace(/[^0-9]/g, "");
+    const height = ["1080", "720", "480", "360", "240", "144"].includes(quality)
+      ? quality
+      : "1080";
 
-  const token = randomUUID();
-  const output = path.join(DOWNLOADS, `${token}.%(ext)s`);
+    const token = randomUUID();
+    const output = path.join(DOWNLOADS, `${token}.%(ext)s`);
 
-  const downloadArgs = [
-    "--no-playlist",
-    "--no-warnings",
-    "--no-part",
-    "--newline",
-    ...(cookiesReady ? ["--cookies", COOKIES_FILE] : []),
-    ...(EXTRA_ARGS ? EXTRA_ARGS.split(/\s+/).filter(Boolean) : []),
-    "-o",
-    output,
-    ...(wantsVideo
-      ? [
-          "-f",
-          `bestvideo[height<=${height}]+bestaudio/best[height<=${height}]/best`,
-          "--merge-output-format",
-          "mkv",
-        ]
-      : ["-f", "bestaudio/best"]),
-    url,
-  ];
+    const downloadArgs = [
+      "--no-playlist",
+      "--no-warnings",
+      "--no-part",
+      "--newline",
+      ...(cookiesReady ? ["--cookies", COOKIES_FILE] : []),
+      ...(EXTRA_ARGS ? EXTRA_ARGS.split(/\s+/).filter(Boolean) : []),
+      "-o",
+      output,
+      ...(wantsVideo
+        ? [
+            "-f",
+            `bestvideo[height<=${height}]+bestaudio/best[height<=${height}]/best`,
+            "--merge-output-format",
+            "mkv",
+          ]
+        : ["-f", "bestaudio/best"]),
+      url,
+    ];
 
-  const download = await run(YTDLP, downloadArgs);
-  if (!download.ok) {
-    const refused = /Unexpected response from webpage request|confirm you.re not a bot|Login required|login required|rate.?limit|429/i.test(
-      download.stderr,
-    );
-    const reason = /is not recognized|ENOENT/i.test(download.stderr)
-      ? "yt-dlp isn't installed on this machine."
-      : refused
-        ? cookiesReady
-          ? "TikTok or Instagram is still refusing this server. The cookies value may have expired — export a fresh one and paste it into your host's settings."
-          : "This site is refusing the server's address because it looks like a bot. Add a cookies value in your host's settings — the setup guide explains how."
-        : /Private video|confirm your age|unavailable|Sign in|login/i.test(download.stderr)
-          ? "This post can't be downloaded — it may be private, age-restricted or login-only."
-          : "yt-dlp could not download this post.";
-    return send(res, 502, {
-      message: reason,
-      detail: download.stderr.split("\n").filter(Boolean).slice(-3).join(" "),
+    const download = await run(YTDLP, downloadArgs);
+    if (!download.ok) {
+      const refused = /Unexpected response from webpage request|confirm you.re not a bot|Login required|login required|rate.?limit|429/i.test(
+        download.stderr,
+      );
+      const reason = /is not recognized|ENOENT/i.test(download.stderr)
+        ? "yt-dlp isn't installed on this machine."
+        : refused
+          ? cookiesReady
+            ? "TikTok or Instagram is still refusing this server. The cookies value may have expired — export a fresh one and paste it into your host's settings."
+            : "This site is refusing the server's address because it looks like a bot. Add a cookies value in your host's settings — the setup guide explains how."
+          : /Private video|confirm your age|unavailable|Sign in|login/i.test(download.stderr)
+            ? "This post can't be downloaded — it may be private, age-restricted or login-only."
+            : "yt-dlp could not download this post.";
+      return send(res, 502, {
+        message: reason,
+        detail: download.stderr.split("\n").filter(Boolean).slice(-3).join(" "),
+      });
+    }
+
+    const source = await findFile(token);
+    if (!source) return send(res, 502, { message: "Download finished without producing a file." });
+
+    // Already in the right container? Leave it alone.
+        if (!ext || path.extname(source).slice(1).toLowerCase() === ext) {
+        return send(res, 200, {
+          downloadUrl: `${publicOrigin(req)}/files/${encodeURIComponent(source)}`,
+        filename: source,
+        ext: path.extname(source).slice(1),
+      });
+    }
+
+    const target = `${token}.${ext}`;
+    const codecArgs = wantsVideo ? VIDEO_CODECS[ext] : AUDIO_CODECS[ext];
+    const encode = await run(FFMPEG, [
+      "-y",
+      "-i",
+      path.join(DOWNLOADS, source),
+      ...codecArgs,
+      path.join(DOWNLOADS, target),
+    ]);
+
+    if (!encode.ok) {
+      const missing = /Unknown encoder|Encoder .* not found/i.test(encode.stderr);
+      return send(res, 502, {
+        message: missing
+          ? `This ffmpeg build can't encode ${ext.toUpperCase()}. Try MP4 or MP3.`
+          : `Converting to ${ext.toUpperCase()} failed.`,
+        detail: encode.stderr.split("\n").filter(Boolean).slice(-3).join(" "),
+      });
+    }
+
+    await unlink(path.join(DOWNLOADS, source)).catch(() => {});
+
+    return send(res, 200, {
+      downloadUrl: `${publicOrigin(req)}/files/${encodeURIComponent(target)}`,
+      filename: target,
+      ext,
     });
+  } finally {
+    activeJobs--;
   }
-
-  const source = await findFile(token);
-  if (!source) return send(res, 502, { message: "Download finished without producing a file." });
-
-  // Already in the right container? Leave it alone.
-      if (!ext || path.extname(source).slice(1).toLowerCase() === ext) {
-      return send(res, 200, {
-        downloadUrl: `${publicOrigin(req)}/files/${encodeURIComponent(source)}`,
-      filename: source,
-      ext: path.extname(source).slice(1),
-    });
-  }
-
-  const target = `${token}.${ext}`;
-  const codecArgs = wantsVideo ? VIDEO_CODECS[ext] : AUDIO_CODECS[ext];
-  const encode = await run(FFMPEG, [
-    "-y",
-    "-i",
-    path.join(DOWNLOADS, source),
-    ...codecArgs,
-    path.join(DOWNLOADS, target),
-  ]);
-
-  if (!encode.ok) {
-    const missing = /Unknown encoder|Encoder .* not found/i.test(encode.stderr);
-    return send(res, 502, {
-      message: missing
-        ? `This ffmpeg build can't encode ${ext.toUpperCase()}. Try MP4 or MP3.`
-        : `Converting to ${ext.toUpperCase()} failed.`,
-      detail: encode.stderr.split("\n").filter(Boolean).slice(-3).join(" "),
-    });
-  }
-
-  await unlink(path.join(DOWNLOADS, source)).catch(() => {});
-
-  return send(res, 200, {
-    downloadUrl: `${publicOrigin(req)}/files/${encodeURIComponent(target)}`,
-    filename: target,
-    ext,
-  });
 }
 
 /** Behind a proxy or a host like Hugging Face Spaces, the public address is the forwarded one. */
