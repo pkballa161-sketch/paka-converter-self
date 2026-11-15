@@ -376,10 +376,9 @@ h1 em {
   background: #142943;
   aspect-ratio: 16 / 10;
 }
-.art img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .art-fallback {
-  width: 100%;
-  height: 100%;
+  position: absolute;
+  inset: 0;
   display: grid;
   place-items: center;
   background: linear-gradient(150deg, #2a1a1d, #17161c 60%);
@@ -387,6 +386,15 @@ h1 em {
   font-size: 30px;
   font-weight: 700;
   letter-spacing: -0.03em;
+}
+.art img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  z-index: 1;
 }
 .art .dur {
   position: absolute;
