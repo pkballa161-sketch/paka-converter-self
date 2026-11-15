@@ -134,13 +134,30 @@ function parseLink(input) {
 /* ---------------- metadata ---------------- */
 
 async function loadMeta(link) {
-  return {
+  const base = {
     title: null,
     author: null,
     thumbnail: null,
     platformName: link.name,
     host: new URL(link.url).hostname,
   };
+  try {
+    const res = await fetch("/api/meta", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url: link.url }),
+    });
+    if (!res.ok) return base;
+    const data = await res.json();
+    return {
+      ...base,
+      title: data.title || null,
+      author: data.author || null,
+      thumbnail: data.thumbnail || null,
+    };
+  } catch {
+    return base;
+  }
 }
 
 /* ---------------- ui ---------------- */
@@ -214,25 +231,41 @@ function choiceLabel() {
 
 /* ---------------- card ---------------- */
 
+function artMarkup() {
+  const letter = (state.meta?.platformName || "Link").slice(0, 1);
+  const thumb = state.meta?.thumbnail;
+  return `<div class="art-fallback">${escapeHtml(letter)}</div>${
+    thumb
+      ? `<img src="${escapeHtml(thumb)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()" />`
+      : ""
+  }`;
+}
+
+function updateCardMeta() {
+  const artEl = resultEl.querySelector(".art");
+  if (artEl) artEl.innerHTML = artMarkup();
+  const h3 = resultEl.querySelector(".meta h3");
+  if (h3 && state.meta?.title) h3.textContent = state.meta.title;
+  const by = resultEl.querySelector(".meta .by");
+  if (by && (state.meta?.author || state.meta?.host)) {
+    by.textContent = state.meta.author || state.meta.host;
+  }
+}
+
 function renderCard(extra = "") {
   if (!state.meta) return;
-  const link = state.url;
-  const art = state.meta.thumbnail
-    ? `<img src="${escapeHtml(state.meta.thumbnail)}" alt="" loading="lazy" referrerpolicy="no-referrer" />`
-    : `<div class="art-fallback">${escapeHtml((state.meta.platformName || "Link").slice(0, 1))}</div>`;
-
   const title = state.meta.title || `${state.meta.platformName || "Post"} link ready`;
   const by = state.meta.author || state.meta.host || "";
 
   resultEl.innerHTML = `
     <div class="card">
-      <div class="art">${art}</div>
+      <div class="art">${artMarkup()}</div>
       <div class="meta">
         <h3>${escapeHtml(title)}</h3>
         <p class="by">${escapeHtml(by)}</p>
         <div class="pills">
           <span class="pill hot">${escapeHtml(state.meta.platformName || "")}</span>
-          <span class="pill">${escapeHtml(isAudio() ? choiceLabel() : choiceLabel())}</span>
+          <span class="pill">${escapeHtml(choiceLabel())}</span>
         </div>
         ${extra}
       </div>
@@ -282,9 +315,26 @@ async function convert() {
   setHint("Reading the post…");
 
   if (!state.meta || state.meta.sourceUrl !== link.url) {
-    state.meta = { ...(await loadMeta(link)), sourceUrl: link.url };
+    // Render immediately with a placeholder, then fill in real metadata in the background.
+    state.meta = {
+      title: null,
+      author: null,
+      thumbnail: null,
+      platformName: link.name,
+      host: new URL(link.url).hostname,
+      sourceUrl: link.url,
+    };
+    renderCard();
+    loadMeta(link)
+      .then((meta) => {
+        if (state.meta?.sourceUrl !== link.url) return; // user changed the URL
+        state.meta = { ...state.meta, ...meta };
+        updateCardMeta();
+      })
+      .catch(() => {});
+  } else {
+    renderCard();
   }
-  renderCard();
 
   const choice = currentChoice();
   const actions = document.createElement("div");
