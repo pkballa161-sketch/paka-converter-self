@@ -17,7 +17,7 @@
 import { createServer } from "node:http";
 import { spawn } from "node:child_process";
 import { createReadStream } from "node:fs";
-import { mkdir, readdir, stat, unlink, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, stat, unlink, writeFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
@@ -145,32 +145,88 @@ function isSupportedUrl(value) {
 
 function run(bin, args, timeoutMs = 10 * 60 * 1000) {
   return new Promise((resolve) => {
+    let stdout = "";
     let stderr = "";
     const child = spawn(bin, args, { stdio: ["ignore", "pipe", "pipe"] });
     const timer = setTimeout(() => child.kill("SIGKILL"), timeoutMs);
-    child.stdout.on("data", () => {});
+    child.stdout.on("data", (chunk) => {
+      stdout = (stdout + chunk.toString()).slice(-2 * 1024 * 1024);
+    });
     child.stderr.on("data", (chunk) => {
       stderr = (stderr + chunk.toString()).slice(-4000);
     });
     child.on("error", (error) => {
       clearTimeout(timer);
-      resolve({ ok: false, stderr: String(error.message) });
+      resolve({ ok: false, stdout, stderr: String(error.message) });
     });
     child.on("close", (code) => {
       clearTimeout(timer);
-      resolve({ ok: code === 0, stderr });
+      resolve({ ok: code === 0, stdout, stderr });
     });
   });
 }
 
 async function findFile(token, ext) {
   const files = await readdir(DOWNLOADS);
-  const mine = files.filter((name) => name.startsWith(token + "."));
+  const mine = files.filter(
+    (name) => name.startsWith(token + ".") && !name.endsWith(".info.json"),
+  );
   if (ext) {
     const exact = mine.find((name) => name.toLowerCase() === `${token}.${ext}`.toLowerCase());
     if (exact) return exact;
   }
   return mine.sort()[0] || null;
+}
+
+async function handleMeta(req, res) {
+  let body;
+  try {
+    body = await readBody(req);
+  } catch (error) {
+    return send(res, 400, { message: error.message });
+  }
+
+  const url = typeof body.url === "string" ? body.url.trim() : "";
+  if (!isSupportedUrl(url)) return send(res, 400, { message: "That link isn't supported." });
+
+  const result = await run(
+    YTDLP,
+    [
+      "--no-playlist",
+      "--no-warnings",
+      "--skip-download",
+      "--dump-single-json",
+      ...(cookiesReady ? ["--cookies", COOKIES_FILE] : []),
+      ...(EXTRA_ARGS ? EXTRA_ARGS.split(/\s+/).filter(Boolean) : []),
+      url,
+    ],
+    60 * 1000,
+  );
+
+  if (!result.ok) {
+    return send(res, 502, {
+      message: "Couldn't read that post's details.",
+      detail: result.stderr.split("\n").filter(Boolean).slice(-3).join(" "),
+    });
+  }
+
+  let info;
+  try {
+    info = JSON.parse(result.stdout);
+  } catch {
+    return send(res, 502, { message: "Couldn't parse metadata." });
+  }
+
+  const bestThumb = Array.isArray(info.thumbnails)
+    ? [...info.thumbnails].filter((t) => t?.url).sort((a, b) => (b.preference ?? 0) - (a.preference ?? 0))[0]?.url
+    : null;
+
+  return send(res, 200, {
+    title: info.title || null,
+    author: info.uploader || info.channel || info.creator || null,
+    thumbnail: info.thumbnail || bestThumb || null,
+    duration: info.duration || null,
+  });
 }
 
 async function handleConvert(req, res) {
@@ -210,6 +266,7 @@ async function handleConvert(req, res) {
       "--no-warnings",
       "--no-part",
       "--newline",
+      "--write-info-json",
       ...(cookiesReady ? ["--cookies", COOKIES_FILE] : []),
       ...(EXTRA_ARGS ? EXTRA_ARGS.split(/\s+/).filter(Boolean) : []),
       "-o",
@@ -245,15 +302,34 @@ async function handleConvert(req, res) {
       });
     }
 
+    // Best-effort metadata pulled from the .info.json yt-dlp just wrote.
+    let ytInfo = null;
+    try {
+      ytInfo = JSON.parse(await readFile(path.join(DOWNLOADS, `${token}.info.json`), "utf8"));
+    } catch {
+      /* no info json */
+    }
+    await unlink(path.join(DOWNLOADS, `${token}.info.json`)).catch(() => {});
+
+    const bestThumb = Array.isArray(ytInfo?.thumbnails)
+      ? [...ytInfo.thumbnails].filter((t) => t?.url).sort((a, b) => (b.preference ?? 0) - (a.preference ?? 0))[0]?.url
+      : null;
+    const metaOut = {
+      title: ytInfo?.title || null,
+      author: ytInfo?.uploader || ytInfo?.channel || ytInfo?.creator || null,
+      thumbnail: ytInfo?.thumbnail || bestThumb || null,
+    };
+
     const source = await findFile(token);
     if (!source) return send(res, 502, { message: "Download finished without producing a file." });
 
     // Already in the right container? Leave it alone.
-        if (!ext || path.extname(source).slice(1).toLowerCase() === ext) {
-        return send(res, 200, {
-          downloadUrl: `${publicOrigin(req)}/files/${encodeURIComponent(source)}`,
+    if (!ext || path.extname(source).slice(1).toLowerCase() === ext) {
+      return send(res, 200, {
+        downloadUrl: `${publicOrigin(req)}/files/${encodeURIComponent(source)}`,
         filename: source,
         ext: path.extname(source).slice(1),
+        ...metaOut,
       });
     }
 
@@ -283,6 +359,7 @@ async function handleConvert(req, res) {
       downloadUrl: `${publicOrigin(req)}/files/${encodeURIComponent(target)}`,
       filename: target,
       ext,
+      ...metaOut,
     });
   } finally {
     activeJobs--;
@@ -355,14 +432,15 @@ const server = createServer(async (req, res) => {
     });
   }
 
-  // Only the conversion call is gated: download links are unguessable, short-lived paths that
-  // the visitor's browser fetches without any headers.
-  if (REQUIRED_KEY && pathname === "/api/convert") {
+  // Only the conversion and metadata calls are gated: download links are unguessable,
+  // short-lived paths that the visitor's browser fetches without any headers.
+  if (REQUIRED_KEY && (pathname === "/api/convert" || pathname === "/api/meta")) {
     const given = String(req.headers.authorization || "").replace(/^Api-Key\s+/i, "").trim();
     if (given !== REQUIRED_KEY) return send(res, 401, { message: "Wrong or missing converter key." });
   }
 
   if (pathname === "/api/convert" && req.method === "POST") return handleConvert(req, res);
+  if (pathname === "/api/meta" && req.method === "POST") return handleMeta(req, res);
   if (pathname.startsWith("/files/")) return serveFile(res, pathname.slice("/files/".length));
   return send(res, 404, { message: "Not found" });
 });
