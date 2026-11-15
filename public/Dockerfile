@@ -6,6 +6,8 @@ RUN apt-get update \
 
 RUN pip3 install --no-cache-dir --break-system-packages -U "yt-dlp[default]" curl_cffi
 
+RUN yt-dlp --version
+
 WORKDIR /app
 COPY public/server.mjs ./server.mjs
 
