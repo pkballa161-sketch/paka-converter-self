@@ -7,7 +7,7 @@ RUN apt-get update \
 RUN pip3 install --no-cache-dir --break-system-packages -U "yt-dlp[default]" curl_cffi
 
 WORKDIR /app
-COPY server.mjs ./server.mjs
+COPY public/server.mjs ./server.mjs
 
 ENV DOWNLOAD_DIR=/tmp/downloads \
     NODE_ENV=production
