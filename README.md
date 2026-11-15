@@ -1,6 +1,6 @@
-# pake / converter
+# pake /converter
 
-**pake / converter** is a self-hosted web tool for converting supported social-media video links into downloadable audio or video files.
+**pake /converter** is a self-hosted web tool for converting supported social-media video links into downloadable audio or video files.
 
 Paste a supported link, choose an output type and quality, and let the connected conversion server prepare the file. The project uses a lightweight web frontend with a separate Node.js conversion service powered by `yt-dlp` and `ffmpeg`.
 
