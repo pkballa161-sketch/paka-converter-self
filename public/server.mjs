@@ -100,7 +100,7 @@ const VIDEO_CODECS = {
   mp4: ["-c:v", "libx264", "-preset", "veryfast", "-crf", "23", "-c:a", "aac", "-b:a", "160k", "-movflags", "+faststart"],
   mkv: ["-c:v", "copy", "-c:a", "copy"],
   webm: ["-c:v", "libvpx-vp9", "-crf", "32", "-b:v", "0", "-row-mt", "1", "-c:a", "libopus", "-b:a", "128k"],
-  mov: ["-c:v", "copy", "-c:a", "aac", "-b:a", "160k", "-movflags", "+faststart"] 
+  mov: ["-c:v", "copy", "-c:a", "aac", "-b:a", "160k", "-movflags", "+faststart"], 
   avi: ["-c:v", "mpeg4", "-q:v", "5", "-c:a", "libmp3lame", "-b:a", "160k"],
   gif: ["-vf", "fps=12,scale=480:-1:flags=lanczos", "-an"],
 };
