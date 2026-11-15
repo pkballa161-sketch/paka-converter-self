@@ -34,6 +34,10 @@ const FULL_VIDEO = [
   ["mov720", "720p · MOV"],
   ["mov480", "480p · MOV"],
   ["mov360", "360p · MOV"],
+  ["mkv", "MKV · Copy"],
+  ["webm", "WebM · VP9"],
+  ["avi", "AVI · MPEG4"],
+  ["gif", "GIF · 480p"],
 ];
 
 // Trimmed to whatever the connected service can genuinely produce.
