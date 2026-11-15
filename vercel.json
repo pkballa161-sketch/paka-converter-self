@@ -1,5 +1,7 @@
 {
   "functions": {
-    "api/convert.js": { "maxDuration": 120 }
+    "api/convert.js": { "maxDuration": 120 },
+    "api/meta.js": { "maxDuration": 60 },
+    "api/thumb.js": { "maxDuration": 30 }
   }
 }
