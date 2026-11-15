@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Setup guide — pake / converter</title>
+<meta name="description" content="Run the conversion server yourself: no credits, no keys, no monthly limit." />
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+<link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+<div class="glow" aria-hidden="true"></div>
+
+<header class="nav">
+  <a class="brand" href="/">
+    <span class="mark" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v11"/><path d="m7.5 9.5 4.5 4.5 4.5-4.5"/><path d="M5 20h14"/></svg>
+    </span>
+    pake <span>/ converter</span>
+  </a>
+  <nav class="links">
+    <a href="/">Converter</a>
+    <a href="/guide.html">Setup guide</a>
+  </nav>
+</header>
+
+<main class="doc">
+  <p class="eyebrow"><span class="dot"></span> run it yourself</p>
+  <h1>Self-hosting</h1>
+  <p class="lede left">No credits, no API key, no monthly ceiling. You run the converter, so the only limit is your own machine — and the only cost is what that machine costs, which can be nothing.</p>
+  <p>Because ffmpeg runs on your machine, this edition can genuinely build containers the paid services refuse: <strong>MP3, M4A, AAC, FLAC, WAV, OGG, Opus, AIFF</strong> for audio, and <strong>MP4, MOV, MKV, WEBM, AVI</strong> or even <strong>GIF</strong> for video.</p>
+
+  <h2>What you're actually running</h2>
+  <p>Three parts, and only the middle one is new:</p>
+  <ol class="bullets">
+    <li>This page, which reads the video and shows the download card. It's already hosted for you.</li>
+    <li>A small Node script, <code>server/server.mjs</code>, that calls <strong>yt-dlp</strong> and <strong>ffmpeg</strong> to fetch and convert the file.</li>
+    <li>The machine that script runs on — your own server.</li>
+  </ol>
+
+  <h2>Step 1 — get a machine</h2>
+  <p>Two options that cost nothing:</p>
+  <div class="cards">
+    <div class="opt">
+      <h3>Oracle Cloud Always Free <span>best</span></h3>
+      <p>2 Arm cores, 12 GB RAM, 200 GB storage, 10 TB of traffic a month, free for the life of the account. A card is required to verify you but is not charged. Capacity in your home region can be temporarily full, which is the usual snag.</p>
+    </div>
+    <div class="opt">
+      <h3>Render <span>no card</span></h3>
+      <p>A free Docker web service: 750 hours a month, no payment details at any point. It sleeps after 15 minutes without visitors and takes about a minute to wake. Its 512 MB of RAM is comfortable for audio but can struggle with long video conversions.</p>
+    </div>
+  </div>
+  <p>Oracle is the one that behaves like a real server. Render is the one that asks for no card at all.</p>
+
+  <h2>The no-card route, in full</h2>
+  <p>Render needs your two files to live in a place it can read, so GitHub holds them. Both accounts are free and neither wants a card.</p>
+  <ol class="bullets">
+    <li>Make a free account at <strong>github.com</strong>, then create a repository — public, any name.</li>
+    <li>In that repository click <strong>Add file → Upload files</strong> and upload <a href="/Dockerfile" download>Dockerfile</a> and <a href="/server.mjs" download>server.mjs</a>. Both go at the top level, no folder.</li>
+    <li>Make a free account at <strong>render.com</strong> using “Sign in with GitHub”. No card, no billing page.</li>
+    <li>Click <strong>New → Web Service</strong>, choose that repository, set <strong>Language: Docker</strong>, and pick the <strong>Free</strong> instance type. Leave everything else alone.</li>
+    <li>Wait for the build to finish. Render gives you an address like <code>https://pake.onrender.com</code>. That, with <code>/api/convert</code> on the end, is what this site needs.</li>
+  </ol>
+  <p>Two honest caveats. Render sleeps after a quarter of an hour with no visitors, so the first conversion of a session makes you wait about a minute while it wakes — pressing the button again is enough, and a free service like <strong>cron-job.org</strong> can ping it every ten minutes to keep it awake inside your 750-hour allowance. And free hosts sit in data centres, which YouTube treats with suspicion: expect the occasional “confirm you're not a bot” refusal on YouTube specifically, fixed by the cookie trick below, with TikTok and Instagram unaffected.</p>
+  <p><strong>A note on Hugging Face Spaces:</strong> their Docker Spaces used to be free and no longer are — as of 2026 you need a paid plan to create one, so ignore any older advice that points you there.</p>
+
+  <h2>Step 2 — install the two tools it drives</h2>
+  <p>If you're doing this from a phone, every server provider has a web terminal in its dashboard — you can paste these same commands there.</p>
+  <p>On a fresh Ubuntu server:</p>
+  <pre><code>sudo apt update
+sudo apt install -y ffmpeg python3-pip pipx nodejs npm
+pipx ensurepath
+pipx install yt-dlp</code></pre>
+  <p>Check both answer before going further:</p>
+  <pre><code>yt-dlp --version
+ffmpeg -version</code></pre>
+
+  <h2>Step 3 — put the converter on the server</h2>
+  <p>The whole converter is one file, and you can pull it straight onto the server from this page:</p>
+  <pre><code>mkdir -p ~/converter &amp;&amp; cd ~/converter
+curl -O https://site-f0338d6656e64b209659f11b3a53d21f.freebuff.page/server.mjs
+CONVERT_API_KEY=change-me node server.mjs</code></pre>
+  <p>Prefer to move it yourself? <a href="/server.mjs" download>Download server.mjs</a> and copy it into <code>~/converter</code>.</p>
+  <p>It answers <code>http://localhost:8080</code>. Keep the <code>CONVERT_API_KEY</code> value — it stops strangers using your bandwidth once the port is public.</p>
+
+  <h2>Step 4 — open the port</h2>
+  <p>On Oracle that means two places, and missing one is the classic mistake:</p>
+  <ol class="bullets">
+    <li><strong>The cloud firewall:</strong> in the Oracle console, your instance's subnet → Security List → add an ingress rule for TCP port 8080 from <code>0.0.0.0/0</code>.</li>
+    <li><strong>The server's own firewall:</strong> <code>sudo ufw allow 8080/tcp</code>.</li>
+  </ol>
+  <p>Then from your phone's browser open <code>http://your-server-ip:8080/health</code> and you should see <code>{"ok":true}</code>. If you don't, it's nearly always the security list.</p>
+
+  <h2>Step 5 — point this site at it</h2>
+  <p>Add these two settings to this site and redeploy:</p>
+  <pre><code>CONVERT_API_URL=http://your-server-ip:8080/api/convert
+CONVERT_API_KEY=change-me</code></pre>
+  <p>The key must match the one the server started with. That's the whole connection — the Convert button now produces real files, with nothing per-download.</p>
+
+  <h2>Step 6 — keep it running</h2>
+  <p>A process started by hand dies when you close the session. A systemd unit keeps it alive and restarts it after a reboot:</p>
+  <pre><code>sudo tee /etc/systemd/system/converter.service &gt;/dev/null &lt;&lt;'EOF'
+[Unit]
+Description=Tube2MP3 converter
+After=network.target
+
+[Service]
+WorkingDirectory=/home/ubuntu/converter
+Environment=PORT=8080
+Environment=CONVERT_API_KEY=change-me
+ExecStart=/usr/bin/node server.mjs
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+sudo systemctl enable --now converter
+sudo systemctl status converter</code></pre>
+
+  <h2>The part that actually bites</h2>
+  <p>YouTube, TikTok and Instagram all treat datacentre addresses with suspicion, so your server will sometimes answer with <strong>“Sign in to confirm you're not a bot”</strong> or “unexpected response from webpage request”. That is exactly why paid APIs exist. The fix is cookies: they make yt-dlp look like a visitor who is already signed in.</p>
+  <p>You need the cookies exported once, from any browser where you're signed in to the site that's refusing you. Install a <strong>“Get cookies.txt LOCALLY”</strong> extension, open the site while signed in, export, and you get a file of plain text.</p>
+  <h3>Putting them on Render</h3>
+  <ol class="bullets">
+    <li>Open the cookie file on your phone and copy <em>all</em> the text.</li>
+    <li>Paste it into the box below and press the button. It gives you one long line of letters.</li>
+    <li>In Render, open your service → <strong>Environment</strong> → <strong>Add Environment Variable</strong>. Key: <code>COOKIES_B64</code>. Value: the line you just copied.</li>
+    <li>Save. Render restarts by itself, and <code>/health</code> will now say <code>"cookies": true</code>.</li>
+  </ol>
+  <div class="cookiebox">
+    <textarea id="cookieIn" rows="5" placeholder="Paste the contents of cookies.txt here…"></textarea>
+    <button id="cookieBtn" class="btn ghost" type="button">Encode it</button>
+    <textarea id="cookieOut" rows="4" readonly placeholder="Your COOKIES_B64 value appears here…"></textarea>
+  </div>
+  <p class="fine">The encoding happens in your browser — the text is never uploaded anywhere. Cookies expire after a few weeks to months; when downloads start refusing again, export a fresh file and repeat.</p>
+  <h3>On a server you manage yourself</h3>
+  <p>Either set <code>COOKIES_TXT</code> to the file's contents, or drop the file next to the script and set <code>COOKIES_FILE=/path/cookies.txt</code>.</p>
+  <p>If it still refuses, <code>pipx upgrade yt-dlp</code> — upstream usually fixes new walls within days.</p>
+
+  <h2>If it still doesn't work</h2>
+  <details open>
+    <summary>The site says "one step left"</summary>
+    <p><code>CONVERT_API_URL</code> isn't set on the site, or the last deploy didn't happen after you set it. Set it, redeploy, reload.</p>
+  </details>
+  <details>
+    <summary>My converter can't be reached</summary>
+    <p>Open <code>http://your-ip:8080/health</code> from outside the server. Nothing? It's the firewall — usually the Oracle security list, not ufw. Something? Check the URL ends in <code>/api/convert</code>.</p>
+  </details>
+  <details>
+    <summary>Conversions fail with a bot message</summary>
+    <p>See the section above: add cookies, then restart. If cookies are already set, they've expired — export a fresh file.</p>
+  </details>
+  <details>
+    <summary>Long videos fail on Render</summary>
+    <p>512 MB isn't enough to merge a long 1080p video. Either pick 360p/MP3 for long ones, or move to Oracle or a small paid VPS.</p>
+  </details>
+
+  <p class="fine"><a href="/">← Back to the converter</a></p>
+</main>
+
+<footer class="foot">
+  <p>pake / converter · download only what you have the right to keep.</p>
+</footer>
+<script>
+  (function () {
+    var input = document.getElementById("cookieIn");
+    var output = document.getElementById("cookieOut");
+    var button = document.getElementById("cookieBtn");
+    if (!button) return;
+    button.addEventListener("click", function () {
+      var text = input.value.trim();
+      if (!text) {
+        output.value = "Paste the cookie file first.";
+        return;
+      }
+      try {
+        output.value = btoa(unescape(encodeURIComponent(text)));
+      } catch (error) {
+        output.value = "That text couldn't be encoded — copy it again from the file.";
+      }
+    });
+  })();
+</script>
+</body>
+</html>
