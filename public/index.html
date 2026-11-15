@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1" name="viewport"/>
+<title>pake / converter</title>
+<meta content="A self-hosted media converter for supported social video links, with audio and video export options." name="description"/>
+<link href="/favicon.svg" rel="icon" type="image/svg+xml"/>
+
+<link href="/styles.css" rel="stylesheet"/></head>
+<body>
+<div aria-hidden="true" class="terminal-ambient"><pre>root@pake:~$ boot --creative
+[OK] loading codec engine
+[OK] mounting download pipeline
+[OK] initializing interface
+&gt; listening on /convert
+&gt; supported: tiktok, ig, fb, x
+&gt; status: READY
+root@pake:~$ █
+&gt; decoding media stream...
+[OK] preparing audio / video
+&gt; waiting for input...
+root@pake:~$ boot --creative
+[OK] loading codec engine
+[OK] mounting download pipeline
+[OK] initializing interface
+&gt; listening on /convert
+&gt; supported: tiktok, ig, fb, x
+&gt; status: READY
+root@pake:~$ █
+&gt; decoding media stream...
+[OK] preparing audio / video
+&gt; waiting for input...
+root@pake:~$ boot --creative
+[OK] loading codec engine
+[OK] mounting download pipeline
+[OK] initializing interface
+&gt; listening on /convert
+&gt; supported: tiktok, ig, fb, x
+&gt; status: READY
+root@pake:~$ █
+&gt; decoding media stream...
+[OK] preparing audio / video
+&gt; waiting for input...
+root@pake:~$ boot --creative
+[OK] loading codec engine
+[OK] mounting download pipeline
+[OK] initializing interface
+&gt; listening on /convert
+&gt; supported: tiktok, ig, fb, x
+&gt; status: READY
+root@pake:~$ █
+&gt; decoding media stream...
+[OK] preparing audio / video
+&gt; waiting for input...
+root@pake:~$ boot --creative
+[OK] loading codec engine
+[OK] mounting download pipeline
+[OK] initializing interface
+&gt; listening on /convert
+&gt; supported: tiktok, ig, fb, x
+&gt; status: READY
+root@pake:~$ █
+&gt; decoding media stream...
+[OK] preparing audio / video
+&gt; waiting for input...
+root@pake:~$ boot --creative
+[OK] loading codec engine
+[OK] mounting download pipeline
+[OK] initializing interface
+&gt; listening on /convert
+&gt; supported: tiktok, ig, fb, x
+&gt; status: READY
+root@pake:~$ █
+&gt; decoding media stream...
+[OK] preparing audio / video
+&gt; waiting for input...
+root@pake:~$ boot --creative
+[OK] loading codec engine
+[OK] mounting download pipeline
+[OK] initializing interface
+&gt; listening on /convert
+&gt; supported: tiktok, ig, fb, x
+&gt; status: READY
+root@pake:~$ █
+&gt; decoding media stream...
+[OK] preparing audio / video
+&gt; waiting for input...</pre><span class="ambient-symbol">◈</span></div><div aria-hidden="true" class="glow"></div>
+<header class="nav">
+<a class="brand" href="/">
+<span aria-hidden="true" class="mark">
+<svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" viewbox="0 0 24 24"><path d="M12 3v11"></path><path d="m7.5 9.5 4.5 4.5 4.5-4.5"></path><path d="M5 20h14"></path></svg>
+</span>
+    pake<span>/ converter</span>
+</a>
+<nav class="links">
+<a href="#how">How it works</a>
+</nav>
+</header>
+<main>
+<section class="hero">
+<p class="eyebrow"><span class="dot"></span> paste · pick · download</p>
+<h1>Social video links.<br/><em>Your formats.</em></h1>
+<p class="lede">Paste a supported link, choose an audio or video format, and download your file through a self-hosted converter.</p>
+<div aria-label="Supported platform" class="platforms" id="platforms" role="tablist">
+<button aria-selected="false" class="ptab" data-platform="tiktok" role="tab" style="--brand:#25f4ee" type="button">
+<span class="pico"><svg fill="currentColor" viewbox="0 0 24 24"><path d="M15 3c.5 2.3 2 3.6 4.2 3.8v3c-1.7 0-3.1-.5-4.2-1.4v6.3a5 5 0 1 1-5-5c.3 0 .7 0 1 .1v3.2a1.8 1.8 0 1 0 1.6 1.8V3h2.4Z"></path></svg></span>
+        TikTok
+      </button>
+<button aria-selected="false" class="ptab" data-platform="instagram" role="tab" style="--brand:#e1306c" type="button">
+<span class="pico"><svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="2" viewbox="0 0 24 24"><rect height="18" rx="5.4" width="18" x="3" y="3"></rect><circle cx="12" cy="12" r="4.1"></circle><circle cx="17.4" cy="6.6" fill="currentColor" r="1.1" stroke="none"></circle></svg></span>
+        Instagram
+      </button>
+<button aria-selected="false" class="ptab" data-platform="facebook" role="tab" style="--brand:#1877f2" type="button">
+<span class="pico"><svg fill="currentColor" viewbox="0 0 24 24"><path d="M13.6 22v-8.2h2.7l.4-3.2h-3.1V8.6c0-.9.3-1.5 1.6-1.5h1.7V4.2c-.3 0-1.4-.1-2.6-.1-2.6 0-4.3 1.6-4.3 4.5v2h-2.7v3.2H10V22h3.6Z"></path></svg></span>
+        Facebook
+      </button>
+<button aria-selected="false" class="ptab" data-platform="x" role="tab" style="--brand:#ffffff" type="button">
+<span class="pico"><svg fill="currentColor" viewbox="0 0 24 24"><path d="M17.5 3h3.2l-7 8 8.2 10h-6.4l-5-6.1-5.7 6.1H1.6l7.5-8.6L1.2 3h6.6l4.5 5.6L17.5 3Zm-1.1 16.1h1.8L7.7 4.8H5.8l10.6 14.3Z"></path></svg></span>
+        X
+      </button>
+</div>
+<form autocomplete="off" class="converter" id="form">
+<div class="bar">
+<div aria-label="Output format" class="segmented" id="format" role="radiogroup">
+<button aria-checked="true" class="seg active" data-format="mp3" role="radio" type="button">Audio</button>
+<button aria-checked="false" class="seg" data-format="mp4" role="radio" type="button">Video</button>
+<span aria-hidden="true" class="thumb"></span>
+</div>
+<label class="quality">
+<span>Quality</span>
+<select aria-label="Quality" id="quality"></select>
+</label>
+</div>
+<div class="field">
+<span aria-hidden="true" class="pico" id="brandIcon">
+<svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.1 0l2-2a5 5 0 0 0-7.1-7.1l-1.1 1.1"></path><path d="M14 11a5 5 0 0 0-7.1 0l-2 2a5 5 0 0 0 7.1 7.1l1.1-1.1"></path></svg>
+</span>
+<input aria-label="Video link" id="url" inputmode="url" placeholder="Paste a link…" spellcheck="false" type="text"/>
+<button class="paste-btn" id="paste" type="button">Paste</button>
+<button class="go" disabled="" id="go" type="submit">
+<span class="label">Convert</span>
+<svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.4" viewbox="0 0 24 24"><path d="M5 12h13"></path><path d="m12 5 7 7-7 7"></path></svg>
+</button>
+</div>
+<p class="hint" id="hint">TikTok, Instagram, Facebook and X links are supported.</p>
+</form>
+<div aria-hidden="true" class="animation-stage"><span class="stage-caption">● SYSTEM MONITOR / LIVE</span><div class="scan"></div><div class="ascii">  ╭──────╮
+  │ ▣  ▣ │
+  │  ▽   │
+  ╰─┬──┬─╯
+    │  │</div><div class="terminal-line">$ pake --status</div><div class="terminal-line">✓ 4 platforms detected</div><div class="terminal-line">✓ ready to convert media</div><span class="terminal-cursor"></span></div>
+<div aria-live="polite" class="result" id="result"></div>
+</section>
+<section class="how" id="how">
+<h2>Three steps, about a minute</h2>
+<ol class="steps">
+<li>
+<span class="num">01</span>
+<h3>Paste your link</h3>
+<p>Copy the address of the post from your browser or the Share button — TikTok, Instagram, Facebook or X — and drop it in the box.</p>
+</li>
+<li>
+<span class="num">02</span>
+<h3>Choose a format</h3>
+<p>MP3 or M4A for audio only — music, podcasts, lectures. MP4 for the full video, up to 1080p.</p>
+</li>
+<li>
+<span class="num">03</span>
+<h3>Download</h3>
+<p>We fetch it, convert it and hand you a direct file link. No sign-up and no redirects.</p>
+</li>
+</ol>
+</section>
+<section class="how" id="limitations">
+<h2>A quick note about video quality</h2>
+<p style="max-width: 760px; margin: 0; color: var(--muted); font-size: 14px; line-height: 1.75;">
+      Paka Converter is free to use and has no ads, so the server has limited resources. Longer videos in HD quality (720p or 1080p) may take more time to process or may sometimes fail. For longer videos, I recommend choosing a standard-definition (SD) quality such as 144p, 240p, 360p or 480p for a more reliable conversion. Thanks for understanding and supporting this free project.
+    </p>
+</section>
+</main>
+<footer class="foot">
+<p>Made with <svg aria-label="green pixel heart" height="18" role="img" style="vertical-align:-3px;image-rendering:pixelated" viewbox="0 0 13 12" width="18" xmlns="http://www.w3.org/2000/svg"><path d="M2 1h3v1h3V1h3v1h1v5h-1v1h-1v1H9v1H8v1H5v-1H4V9H3V8H2V7H1V2h1z" fill="#69e6a3"></path><path d="M3 2h2v1H3zm5 0h2v1H8z" fill="#b0ffd0"></path></svg> by Paka</p>
+</footer>
+
+<script src="/app.js"></script></body>
+</html>
